@@ -73,15 +73,15 @@ def symmetry_maps(n):
 def canonical(path, sym_maps, closed):
     """Smallest equivalent path under symmetry, reversal and (if a loop) rotation."""
     best = None
-    L = len(path)
     for m in sym_maps:
         p = [m[x] for x in path]
         for seq in (p, p[::-1]):
             if closed:
-                for s in range(L):
-                    cand = tuple(seq[s:] + seq[:s])
-                    if best is None or cand < best:
-                        best = cand
+                # the smallest rotation must start at cell 0, so only try that one
+                s = seq.index(0)
+                cand = tuple(seq[s:] + seq[:s])
+                if best is None or cand < best:
+                    best = cand
             else:
                 cand = tuple(seq)
                 if best is None or cand < best:

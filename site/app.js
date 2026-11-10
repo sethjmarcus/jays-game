@@ -44,14 +44,14 @@ function canonicalKey(path, maps, closed) {
   for (const m of maps) {
     const p = path.map(x => m[x]);
     for (const seq of [p, p.slice().reverse()]) {
-      const shifts = closed ? L : 1;
-      for (let s = 0; s < shifts; s++) {
-        const cand = s ? seq.slice(s).concat(seq.slice(0, s)) : seq;
-        if (best === null || lexLess(cand, best)) best = cand.slice();
-      }
+      // A loop can start anywhere, but the smallest rotation must start at
+      // cell 0 (every cell is on the path), so only that one rotation is needed.
+      let cand = seq;
+      if (closed) { const s = seq.indexOf(0); cand = seq.slice(s).concat(seq.slice(0, s)); }
+      if (best === null || lexLess(cand, best)) best = cand.slice();
     }
   }
-  return best.join(",");
+  return String.fromCharCode(...best);   // compact key: one character per cell
 }
 
 // Build a solver whose run(budget) does at most `budget` moves, then returns,
@@ -135,7 +135,7 @@ let solutions = [], current = 0, boardN = 10, running = false, stopFlag = false,
 const cellName = (i, n) => String.fromCharCode(65 + (i % n)) + (Math.floor(i / n) + 1);
 // Limits are enforced here in code, not just by the HTML min/max attributes,
 // which a user can edit or bypass in dev tools.
-const LIMITS = { size: [4, 12], count: [1, 5000], seconds: [1, 600] };
+const LIMITS = { size: [4, 12], count: [1, 100000], seconds: [1, 600] };
 function clampInt(raw, [lo, hi], fallback) {
   const v = Math.trunc(Number(raw));
   return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback;
@@ -155,6 +155,10 @@ function setRunning(on) {
   $("go").hidden = on;
   $("stop").hidden = !on;
 }
+
+// correct out-of-range values as soon as the user leaves the box
+$("count").onchange = () => { $("count").value = clampInt($("count").value, LIMITS.count, 20); };
+$("seconds").onchange = () => { $("seconds").value = clampInt($("seconds").value, LIMITS.seconds, 20); };
 
 $("go").onclick = () => {
   if (running) return;
