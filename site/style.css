@@ -57,3 +57,8 @@ button.wide { width: 100%; margin-top: 6px; }
 .legend .dot-end { background: var(--end); }
 .info .where { color: var(--muted); font-size: 13px; }
 .num.on-marker { fill: #fff; }
+.errors { margin: 10px 0 0; padding: 8px 10px 8px 26px; border-radius: 8px; font-size: 13px;
+          color: var(--end); background: color-mix(in srgb, var(--end) 10%, transparent);
+          border: 1px solid color-mix(in srgb, var(--end) 35%, transparent); }
+.errors li + li { margin-top: 3px; }
+input.invalid, select.invalid { border-color: var(--end); outline: 2px solid color-mix(in srgb, var(--end) 30%, transparent); }

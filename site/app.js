@@ -134,20 +134,73 @@ let solutions = [], current = 0, boardN = 10, running = false, stopFlag = false,
 
 const cellName = (i, n) => String.fromCharCode(65 + (i % n)) + (Math.floor(i / n) + 1);
 // Limits are enforced here in code, not just by the HTML min/max attributes,
-// which a user can edit or bypass in dev tools.
+// which a user can edit or bypass in dev tools. Invalid input is rejected with
+// a message; nothing is silently replaced with a default.
 const LIMITS = { size: [4, 12], count: [1, 100000], seconds: [1, 600] };
-function clampInt(raw, [lo, hi], fallback) {
-  const v = Math.trunc(Number(raw));
-  return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : fallback;
+const fmt = x => x.toLocaleString("en-US");
+
+// Strict whole number in [lo, hi]: digits only, so "", "abc", "1.5", "-3",
+// "1e5" and "  " are all rejected.
+function readInt(el, label, [lo, hi]) {
+  const raw = String(el.value).trim();
+  if (el.validity && el.validity.badInput) throw new FieldError(el, `${label} must be a number.`);
+  if (raw === "") throw new FieldError(el, `${label} is required.`);
+  if (!/^\d+$/.test(raw)) throw new FieldError(el, `${label} must be a whole number from ${fmt(lo)} to ${fmt(hi)}.`);
+  const v = Number(raw);
+  if (v < lo || v > hi) throw new FieldError(el, `${label} must be from ${fmt(lo)} to ${fmt(hi)} (got ${fmt(v)}).`);
+  return v;
+}
+
+class FieldError extends Error {
+  constructor(el, msg) { super(msg); this.el = el; }
 }
 
 function parseCell(t, n) {
-  t = String(t).trim().toUpperCase().slice(0, 4);
+  t = String(t).trim().toUpperCase();
   if (!t) return null;
   const m = /^([A-Z])(\d{1,2})$/.exec(t);          // exactly: one letter + 1–2 digits
   const c = m ? m[1].charCodeAt(0) - 65 : -1, r = m ? +m[2] - 1 : -1;
-  if (!(c >= 0 && c < n && r >= 0 && r < n)) throw new Error(`Start square must be like A1, on a ${n}×${n} board`);
+  if (!(c >= 0 && c < n && r >= 0 && r < n)) {
+    const last = String.fromCharCode(64 + n) + n;
+    throw new FieldError($("start"), `Start square must be a square from A1 to ${last}, like C4.`);
+  }
   return r * n + c;
+}
+
+const FIELDS = ["size", "count", "seconds", "start"];
+function showErrors(errs) {
+  for (const id of FIELDS) { $(id).classList.remove("invalid"); $(id).removeAttribute("aria-invalid"); }
+  let box = $("errors");
+  if (!box) {                       // works even with an index.html that lacks the box
+    box = document.createElement("ul");
+    box.id = "errors"; box.className = "errors"; box.setAttribute("role", "alert");
+    $("go").before(box);
+  }
+  box.replaceChildren();
+  box.hidden = errs.length === 0;
+  for (const e of errs) {
+    const li = document.createElement("li");
+    li.textContent = e.message;
+    box.append(li);
+    if (e.el) { e.el.classList.add("invalid"); e.el.setAttribute("aria-invalid", "true"); }
+  }
+  if (errs.length && errs[0].el) errs[0].el.focus();
+}
+// clear a field's highlight as soon as the user edits it
+for (const id of FIELDS) $(id).addEventListener("input", () => {
+  $(id).classList.remove("invalid"); $(id).removeAttribute("aria-invalid");
+});
+
+// Read and check every input; returns the settings, or null after showing errors.
+function readSettings() {
+  const errs = [];
+  const attempt = f => { try { return f(); } catch (e) { errs.push(e); return undefined; } };
+  const n = attempt(() => readInt($("size"), "Board size", LIMITS.size));
+  const want = attempt(() => readInt($("count"), "Solutions to find", LIMITS.count));
+  const secs = attempt(() => readInt($("seconds"), "Time limit", LIMITS.seconds));
+  const forcedStart = n === undefined ? undefined : attempt(() => parseCell($("start").value, n));
+  showErrors(errs);
+  return errs.length ? null : { n, want, secs, forcedStart };
 }
 
 function setRunning(on) {
@@ -156,19 +209,11 @@ function setRunning(on) {
   $("stop").hidden = !on;
 }
 
-// correct out-of-range values as soon as the user leaves the box
-$("count").onchange = () => { $("count").value = clampInt($("count").value, LIMITS.count, 20); };
-$("seconds").onchange = () => { $("seconds").value = clampInt($("seconds").value, LIMITS.seconds, 20); };
-
 $("go").onclick = () => {
   if (running) return;
-  const n = clampInt($("size").value, LIMITS.size, 10);
-  let forcedStart;
-  try { forcedStart = parseCell($("start").value, n); }
-  catch (e) { $("status").textContent = e.message; return; }
-  const want = clampInt($("count").value, LIMITS.count, 20);
-  const secs = clampInt($("seconds").value, LIMITS.seconds, 20);
-  $("size").value = n; $("count").value = want; $("seconds").value = secs;   // show the values actually used
+  const settings = readSettings();
+  if (!settings) { $("status").textContent = ""; return; }   // errors are shown; don't run
+  const { n, want, secs, forcedStart } = settings;
   const deadline = performance.now() + 1000 * secs;
   const solver = makeSolver(n, { want, loopsOnly: $("loops").checked, forcedStart });
   boardN = n; solutions = []; current = 0; stopFlag = false;

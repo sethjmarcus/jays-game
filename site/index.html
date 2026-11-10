@@ -22,9 +22,10 @@
         <label class="row">Time limit (s)
           <input id="seconds" type="number" min="1" max="600" value="20"></label>
         <label class="row">Start square (optional)
-          <input id="start" type="text" placeholder="e.g. A1" maxlength="3" autocomplete="off"></label>
+          <input id="start" type="text" placeholder="e.g. A1" maxlength="3" autocomplete="off" spellcheck="false"></label>
         <label class="row">Closed loops only
           <input id="loops" type="checkbox"></label>
+        <ul class="errors" id="errors" role="alert" hidden></ul>
         <button id="go" class="primary">Find solutions</button>
         <button id="stop" class="primary danger" hidden>Stop</button>
         <div class="status" id="status"></div>
